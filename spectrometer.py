@@ -74,17 +74,15 @@ def findAperture(pix,middleX,middleY):
 
 # draw aperture onto image
 def drawAperture(aperture,draw):
-	draw.setink("#000");
-	draw.line((aperture['x'],aperture['y']-aperture['h']/2,aperture['x'],aperture['y']+aperture['h']/2))
+	draw.line((aperture['x'],aperture['y']-aperture['h']/2,aperture['x'],aperture['y']+aperture['h']/2),fill="#000")
 
 #draw scan line
 def drawScanLine(aperture,spectrumAngle,draw):
 	xd=aperture['x']
 	h=aperture['h']/2
 	y0=math.tan(spectrumAngle)*xd+aperture['y']
-	draw.setink("#888");
-	draw.line((0,y0-h,aperture['x'],aperture['y']-h))
-	draw.line((0,y0+h,aperture['x'],aperture['y']+h))
+	draw.line((0,y0-h,aperture['x'],aperture['y']-h),fill="#888")
+	draw.line((0,y0+h,aperture['x'],aperture['y']+h),fill="#888")
 
 
 #return an RGB visual representation of wavelength for chart
@@ -164,7 +162,6 @@ wavelengthFactor=0.892 # 1000/mm
 
 xd=aperture['x']
 h=aperture['h']/2
-draw.setink("#FFF");
 step=1
 last_graphY=0
 maxResult=0
@@ -215,7 +212,7 @@ for x in range(0,xd*7/8,step):
 	if amplitude>maxResult:
 		maxResult=amplitude
 	graphY=amplitude/50*h
-	draw.line((x-step,y0+h-last_graphY, x,y0+h-graphY))
+	draw.line((x-step,y0+h-last_graphY, x,y0+h-graphY),fill="#fff")
 	last_graphY=graphY
 
 for wl in range(400,1001,50):
@@ -270,10 +267,8 @@ for x in range(0,w,1):
 	# Iterate across frequencies, not wavelengths
 	lambda2 = 1.0/(f1-(float(x)/float(w)*(f1-f2)))
 	c=wavelengthToColor(lambda2)
-	draw.setink(c)
-	draw.line( (x, 0, x, h) )
+	draw.line((x, 0, x, h),fill=c)
 	
-draw.setink("#000")
 pl=[]
 pl.append( (w,0) )
 pl.append( (w,h) )
@@ -287,17 +282,17 @@ pl.append( (0,0) )
 draw.polygon(pl,fill="#FFF")
 draw.polygon(pl)
 
-font = ImageFont.truetype("Ubuntu-R.ttf", 12*antialias)
-draw.line((0,h,w,h),width=antialias)
+font = ImageFont.truetype("Lato-Regular.ttf", 12*antialias)
+draw.line((0,h,w,h),fill="#000",width=antialias)
 
 for wl in range(400,1001,10):
 	x=int( (float(wl)-w1)/(w2-w1) * w )
-	draw.line((x,h, x,h+3*antialias),width=antialias)
+	draw.line((x,h, x,h+3*antialias),fill="#000",width=antialias)
 
 
 for wl in range(400,1001,50):
 	x=int( (float(wl)-w1)/(w2-w1) * w )
-	draw.line((x,h, x,h+5*antialias),width=antialias)
+	draw.line((x,h, x,h+5*antialias),fill="#000",width=antialias)
 	wls=str(wl)
 	tx=draw.textsize(wls,font=font)
 	draw.text((x-tx[0]/2,h+5*antialias),wls,font=font)
@@ -306,10 +301,3 @@ for wl in range(400,1001,50):
 sd = sd.resize((w/antialias,h/antialias), Image.ANTIALIAS)
 outputFilename=name+"_chart.png"
 sd.save(outputFilename, "PNG", quality=95, optimize=True, progressive=True)
-
-
-
-
-
-
-
