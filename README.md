@@ -10,7 +10,7 @@ For more details please see blog post at [Durable Scope](http://blog.durablescop
 ## Getting Started
 Run ```docker build -t [your_desired_image_name] .```
 
-Then ```docker run -i -t [your_image_name_from_above] /bin/bash```
+Then ```docker run --device=/dev/vchiq -i -t [your_image_name_from_above] /bin/bash```
 
 All of the files located in this directory will be mounted at ```/src```, run
 ```cd src``` to navigate there.
@@ -23,4 +23,3 @@ Take a micro-SD card and drop the source code from this repository onto a desire
 Take SD-card and insert it into the Raspberry Pi device, connect via ssh or attached keyboard and monitor.
 
 Follow the Dockerfile steps manually to install required dependencies and operate on the actual SD card OS.
-
