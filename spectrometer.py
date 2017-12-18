@@ -193,7 +193,7 @@ def draw_graph(draw, pic_pixels, aperture, spectrum_angle, wavelength_factor):
         draw.line((x - step, y0 + aperture_height - last_graph_y, x, y0 + aperture_height - graph_y), fill="#fff")
         last_graph_y = graph_y
     draw_something(draw, aperture, spectrum_angle, wavelength_factor)  # not quire sure what this does
-    return {'results': results, 'max_result': max_result}
+    return results, max_result
 
 
 def draw_something(draw, aperture, spectrum_angle, wavelength_factor):

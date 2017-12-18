@@ -14,5 +14,12 @@ RUN apt-get update && apt-get install -y \
     python-imaging \
     python-picamera
 
+# Install pip modules
+RUN pip3 install pillow
+
+# Install picamera
+RUN pip3 install picamera
+RUN pip3 install --user picamera
+
 # Add local volume for code
 ADD . /src
