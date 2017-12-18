@@ -79,13 +79,15 @@ def find_aperture(pic_pixels, pic_width, pic_height):
 
 
 # draw aperture onto image
-def draw_aperture(aperture, draw, color):
+def draw_aperture(aperture, draw):
+    color = "#000"
     draw.line((aperture['x'], aperture['y'] - aperture['h'] / 2, aperture['x'], aperture['y'] + aperture['h'] / 2),
               fill=color)
 
 
 # draw scan line
-def draw_scan_line(aperture, draw, spectrum_angle, color):
+def draw_scan_line(aperture, draw, spectrum_angle):
+    color = "#888"
     xd = aperture['x']
     h = aperture['h'] / 2
     y0 = math.tan(spectrum_angle) * xd + aperture['y']
@@ -134,11 +136,12 @@ def take_picture(camera, name, shutter):
     camera.exposure_mode = 'off'
     camera.awb_mode = 'off'
     camera.awb_gains = (1, 1)
-    time.sleep(3)
-    raw_filename = name + "_raw.jpg"
 
+    time.sleep(3)
+
+    raw_filename = name + "_raw.jpg"
     camera.capture(raw_filename, resize=(1296, 972))
-    return Image.open(raw_filename)
+    return raw_filename
 
 
 def draw_graph(draw, pic_pixels, aperture, spectrum_angle, wavelength_factor):
@@ -189,6 +192,7 @@ def draw_graph(draw, pic_pixels, aperture, spectrum_angle, wavelength_factor):
         graph_y = amplitude / 50 * aperture_height
         draw.line((x - step, y0 + aperture_height - last_graph_y, x, y0 + aperture_height - graph_y), fill="#fff")
         last_graph_y = graph_y
+    draw_something(draw, aperture, spectrum_angle, wavelength_factor)  # not quire sure what this does
     return {'results': results, 'max_result': max_result}
 
 
@@ -209,6 +213,12 @@ def inform_user_of_exposure(max_result):
         print("consider increasing shutter time")
     elif exposure > 0.3:
         print("consider reducing shutter time")
+
+
+def save_image_with_overlay(im, name):
+    output_filename = name + "_out.jpg"
+    ImageFile.MAXBLOCK = 2 ** 20
+    im.save(output_filename, "JPEG", quality=80, optimize=True, progressive=True)
 
 
 def normalize_results(results, max_result):
@@ -284,7 +294,8 @@ def main():
     camera = picamera.PiCamera()
     name = sys.argv[1]
     shutter = int(sys.argv[2])
-    im = take_picture(camera, name, shutter)
+    raw_filename = take_picture(camera, name, shutter)
+    im = Image.open(raw_filename)
 
     # 2. Get picture's aperture
     pic_width = im.size[0]
@@ -295,32 +306,27 @@ def main():
     # 3. Draw aperture and scan line
     spectrum_angle = 0.03
     draw = ImageDraw.Draw(im)
-    draw_aperture(aperture, draw, "000")
-    draw_scan_line(aperture, draw, spectrum_angle, "888")
+    draw_aperture(aperture, draw)
+    draw_scan_line(aperture, draw, spectrum_angle)
 
     # 4. Draw graph on picture
     wavelength_factor = 0.892  # 1000/mm
     # wavelength_factor=0.892*2.0*600/650 # 500/mm
     results, max_result = draw_graph(draw, pic_pixels, aperture, spectrum_angle, wavelength_factor)
 
-    # 5. Draw something on picture
-    draw_something(draw, aperture, spectrum_angle, wavelength_factor)
-
-    # 6. Inform user of issues with exposure
+    # 5. Inform user of issues with exposure
     inform_user_of_exposure(max_result)
 
-    # 7. Save picture with markup
-    output_filename = name + "_out.jpg"
-    ImageFile.MAXBLOCK = 2 ** 20
-    im.save(output_filename, "JPEG", quality=80, optimize=True, progressive=True)
+    # 6. Save picture with overlay
+    save_image_with_overlay(im, name)
 
-    # 8. Normalise results for export
+    # 7. Normalize results for export
     normalized_results = normalize_results(results, max_result)
 
-    # 9. Save csv of results
+    # 8. Save csv of results
     export_csv(name, normalized_results)
 
-    # 10. Generate spectrum diagram
+    # 9. Generate spectrum diagram
     export_diagram(name, normalized_results)
 
 
