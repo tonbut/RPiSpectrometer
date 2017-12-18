@@ -39,11 +39,13 @@ def get_spectrum_y_bound(pix, x, middle_y, spectrum_threshold, spectrum_threshol
 
 
 # find aperture on right hand side of image along middle line
-def find_aperture(pix, im, middle_x, middle_y):
+def find_aperture(pic_pixels, pic_width, pic_height):
+    middle_x = pic_width / 2
+    middle_y = pic_height / 2
     aperture_brightest = 0
     aperture_x = 0
-    for x in range(middle_x, im.size[0], 1):
-        r, g, b = pix[x, middle_y]
+    for x in range(middle_x, pic_width, 1):
+        r, g, b = pic_pixels[x, middle_y]
         brightness = r + g + b
         if brightness > aperture_brightest:
             aperture_brightest = brightness
@@ -52,15 +54,15 @@ def find_aperture(pix, im, middle_x, middle_y):
     aperture_threshold = aperture_brightest * 0.9
     aperture_x1 = aperture_x
     for x in range(aperture_x, middle_x, -1):
-        r, g, b = pix[x, middle_y]
+        r, g, b = pic_pixels[x, middle_y]
         brightness = r + g + b
         if brightness < aperture_threshold:
             aperture_x1 = x
             break
 
     aperture_x2 = aperture_x
-    for x in range(aperture_x, im.size[0], 1):
-        r, g, b = pix[x, middle_y]
+    for x in range(aperture_x, pic_width, 1):
+        r, g, b = pic_pixels[x, middle_y]
         brightness = r + g + b
         if brightness < aperture_threshold:
             aperture_x2 = x
@@ -69,7 +71,7 @@ def find_aperture(pix, im, middle_x, middle_y):
     aperture_x = (aperture_x1 + aperture_x2) / 2
 
     spectrum_threshold_duration = 64
-    aperture_y_bounds = get_spectrum_y_bound(pix, aperture_x, middle_y, aperture_threshold, spectrum_threshold_duration)
+    aperture_y_bounds = get_spectrum_y_bound(pic_pixels, aperture_x, middle_y, aperture_threshold, spectrum_threshold_duration)
     aperture_y = (aperture_y_bounds[0] + aperture_y_bounds[1]) / 2
     aperture_height = (aperture_y_bounds[1] - aperture_y_bounds[0]) * 0.9
 
@@ -77,18 +79,18 @@ def find_aperture(pix, im, middle_x, middle_y):
 
 
 # draw aperture onto image
-def draw_aperture(aperture, draw):
+def draw_aperture(aperture, draw, color):
     draw.line((aperture['x'], aperture['y'] - aperture['h'] / 2, aperture['x'], aperture['y'] + aperture['h'] / 2),
-              fill="#000")
+              fill=color)
 
 
 # draw scan line
-def draw_scan_line(aperture, spectrum_angle, draw):
+def draw_scan_line(aperture, draw, spectrum_angle, color):
     xd = aperture['x']
     h = aperture['h'] / 2
     y0 = math.tan(spectrum_angle) * xd + aperture['y']
-    draw.line((0, y0 - h, aperture['x'], aperture['y'] - h), fill="#888")
-    draw.line((0, y0 + h, aperture['x'], aperture['y'] + h), fill="#888")
+    draw.line((0, y0 - h, aperture['x'], aperture['y'] - h), fill=color)
+    draw.line((0, y0 + h, aperture['x'], aperture['y'] + h), fill=color)
 
 
 # return an RGB visual representation of wavelength for chart
@@ -124,53 +126,30 @@ def wavelength_to_color(lambda2):
     return int(255 * color[0] * factor), int(255 * color[1] * factor), int(255 * color[2] * factor)
 
 
-def main():
-    name = sys.argv[1]
-    shutter = int(sys.argv[2])
-
-    camera = picamera.PiCamera()
-
+def take_picture(camera, name, shutter):
     camera.vflip = True
     camera.framerate = Fraction(1, 6)
     camera.shutter_speed = shutter
     camera.iso = 100
     camera.exposure_mode = 'off'
-
     camera.awb_mode = 'off'
     camera.awb_gains = (1, 1)
-
-    raw_filename = name + "_raw.jpg"
     time.sleep(3)
+    raw_filename = name + "_raw.jpg"
+
     camera.capture(raw_filename, resize=(1296, 972))
+    return Image.open(raw_filename)
 
-    im = Image.open(raw_filename)
-    middle_y = im.size[1] / 2
-    middle_x = im.size[0] / 2
-    pix = im.load()
-    # print im.bits, im.size, im.format
 
-    draw = ImageDraw.Draw(im)
-    spectrum_angle = 0.03
-
-    aperture = find_aperture(pix, im, middle_x, middle_y)
-    # print aperture
-    draw_aperture(aperture, draw)
-    draw_scan_line(aperture, spectrum_angle, draw)
-
-    wavelength_factor = 0.892  # 1000/mm
-    # wavelength_factor=0.892*2.0*600/650 # 500/mm
-
-    xd = aperture['x']
-    h = aperture['h'] / 2
+def draw_graph(draw, pic_pixels, aperture, spectrum_angle, wavelength_factor):
+    aperture_height = aperture['h'] / 2
     step = 1
     last_graph_y = 0
     max_result = 0
     results = OrderedDict()
-    for x in range(0, xd * 7 / 8, step):
-        wavelength = (xd - x) * wavelength_factor
-        if wavelength < 380:
-            continue
-        if wavelength > 1000:
+    for x in range(0, aperture['x'] * 7 / 8, step):
+        wavelength = (aperture['x'] - x) * wavelength_factor
+        if 1000 < wavelength or wavelength < 380:
             continue
 
         # general efficiency curve of 1000/mm grating
@@ -192,14 +171,13 @@ def main():
             d = (width - abs(wavelength - mid)) / width
             eff = eff * (1 + d * 0.1)
 
-        y0 = math.tan(spectrum_angle) * (xd - x) + aperture['y']
+        y0 = math.tan(spectrum_angle) * (aperture['x'] - x) + aperture['y']
         amplitude = 0
         ac = 0.0
-        for y in range(int(y0 - h), int(y0 + h), 1):
-            r, g, b = pix[x, y]
-            # q=math.sqrt(r*r+b*b+g*g*1.5);
+        for y in range(int(y0 - aperture_height), int(y0 + aperture_height), 1):
+            r, g, b = pic_pixels[x, y]
             q = r + b + g * 2
-            if y < (y0 - h + 2) or y > (y0 + h - 3):
+            if y < (y0 - aperture_height + 2) or y > (y0 + aperture_height - 3):
                 q = q * 0.5
             amplitude = amplitude + q
             ac = ac + 1.0
@@ -208,16 +186,22 @@ def main():
         results[str(wavelength)] = amplitude
         if amplitude > max_result:
             max_result = amplitude
-        graph_y = amplitude / 50 * h
-        draw.line((x - step, y0 + h - last_graph_y, x, y0 + h - graph_y), fill="#fff")
+        graph_y = amplitude / 50 * aperture_height
+        draw.line((x - step, y0 + aperture_height - last_graph_y, x, y0 + aperture_height - graph_y), fill="#fff")
         last_graph_y = graph_y
+    return {'results': results, 'max_result': max_result}
 
+
+def draw_something(draw, aperture, spectrum_angle, wavelength_factor):
+    aperture_height = aperture['h'] / 2
     for wl in range(400, 1001, 50):
-        x = xd - (wl / wavelength_factor)
-        y0 = math.tan(spectrum_angle) * (xd - x) + aperture['y']
-        draw.line((x, y0 + h + 5, x, y0 + h - 5))
-        draw.text((x, y0 + h + 15), str(wl))
+        x = aperture['x'] - (wl / wavelength_factor)
+        y0 = math.tan(spectrum_angle) * (aperture['x'] - x) + aperture['y']
+        draw.line((x, y0 + aperture_height + 5, x, y0 + aperture_height - 5))
+        draw.text((x, y0 + aperture_height + 15), str(wl))
 
+
+def inform_user_of_exposure(max_result):
     exposure = max_result / (255 + 255 + 255)
     print("ideal exposure between 0.15 and 0.30")
     print("exposure=", exposure)
@@ -226,27 +210,26 @@ def main():
     elif exposure > 0.3:
         print("consider reducing shutter time")
 
-    # save image with markup
-    output_filename = name + "_out.jpg"
-    ImageFile.MAXBLOCK = 2 ** 20
-    im.save(output_filename, "JPEG", quality=80, optimize=True, progressive=True)
 
-    # normalise results
+def normalize_results(results, max_result):
     for wavelength in results:
         results[wavelength] = results[wavelength] / max_result
+    return results
 
-    # save csv of results
+
+def export_csv(name, normalized_results):
     csv_filename = name + ".csv"
     csv = open(csv_filename, 'w')
     csv.write("wavelength,amplitude\n")
-    for wavelength in results:
+    for wavelength in normalized_results:
         csv.write(wavelength)
         csv.write(",")
-        csv.write("{:0.3f}".format(results[wavelength]))
+        csv.write("{:0.3f}".format(normalized_results[wavelength]))
         csv.write("\n")
     csv.close()
 
-    # generate spectrum diagram
+
+def export_diagram(name, normalized_results):
     antialias = 4
     w = 600 * antialias
     h2 = 300 * antialias
@@ -266,11 +249,11 @@ def main():
         draw.line((x, 0, x, h), fill=c)
 
     pl = [(w, 0), (w, h)]
-    for wavelength in results:
+    for wavelength in normalized_results:
         wl = float(wavelength)
         x = int((wl - w1) / (w2 - w1) * w)
         # print wavelength,x
-        pl.append((int(x), int((1 - results[wavelength]) * h)))
+        pl.append((int(x), int((1 - normalized_results[wavelength]) * h)))
     pl.append((0, h))
     pl.append((0, 0))
     draw.polygon(pl, fill="#FFF")
@@ -294,6 +277,51 @@ def main():
     sd = sd.resize((w / antialias, h / antialias), Image.ANTIALIAS)
     output_filename = name + "_chart.png"
     sd.save(output_filename, "PNG", quality=95, optimize=True, progressive=True)
+
+
+def main():
+    # 1. Take picture
+    camera = picamera.PiCamera()
+    name = sys.argv[1]
+    shutter = int(sys.argv[2])
+    im = take_picture(camera, name, shutter)
+
+    # 2. Get picture's aperture
+    pic_width = im.size[0]
+    pic_height = im.size[1]
+    pic_pixels = im.load()
+    aperture = find_aperture(pic_pixels, pic_width, pic_height)
+
+    # 3. Draw aperture and scan line
+    spectrum_angle = 0.03
+    draw = ImageDraw.Draw(im)
+    draw_aperture(aperture, draw, "000")
+    draw_scan_line(aperture, draw, spectrum_angle, "888")
+
+    # 4. Draw graph on picture
+    wavelength_factor = 0.892  # 1000/mm
+    # wavelength_factor=0.892*2.0*600/650 # 500/mm
+    results, max_result = draw_graph(draw, pic_pixels, aperture, spectrum_angle, wavelength_factor)
+
+    # 5. Draw something on picture
+    draw_something(draw, aperture, spectrum_angle, wavelength_factor)
+
+    # 6. Inform user of issues with exposure
+    inform_user_of_exposure(max_result)
+
+    # 7. Save picture with markup
+    output_filename = name + "_out.jpg"
+    ImageFile.MAXBLOCK = 2 ** 20
+    im.save(output_filename, "JPEG", quality=80, optimize=True, progressive=True)
+
+    # 8. Normalise results for export
+    normalized_results = normalize_results(results, max_result)
+
+    # 9. Save csv of results
+    export_csv(name, normalized_results)
+
+    # 10. Generate spectrum diagram
+    export_diagram(name, normalized_results)
 
 
 main()
