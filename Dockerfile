@@ -2,8 +2,8 @@ FROM resin/rpi-raspbian
 
 # Install dependencies
 RUN apt-get update && apt-get install -y \
-	vim \
-	python \
+    vim \
+    python3 \
     python-pip \
     python-pil \
     libjpeg8 \
