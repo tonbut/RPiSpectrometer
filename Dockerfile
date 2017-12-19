@@ -11,7 +11,8 @@ RUN apt-get update && apt-get install -y \
     libfreetype6 \
     libfreetype6-dev \
     zlib1g \
-    python3-picamera
+    python3-picamera \
+    fonts-lato
 
 # Add local volume for code
 ADD . /src

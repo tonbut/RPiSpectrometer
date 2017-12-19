@@ -39,9 +39,9 @@ def get_spectrum_y_bound(pix, x, middle_y, spectrum_threshold, spectrum_threshol
 
 
 # find aperture on right hand side of image along middle line
-def find_aperture(pic_pixels, pic_width, pic_height):
-    middle_x = pic_width / 2
-    middle_y = pic_height / 2
+def find_aperture(pic_pixels, pic_width: int, pic_height: int) -> object:
+    middle_x = int(pic_width / 2)
+    middle_y = int(pic_height / 2)
     aperture_brightest = 0
     aperture_x = 0
     for x in range(middle_x, pic_width, 1):
@@ -80,30 +80,29 @@ def find_aperture(pic_pixels, pic_width, pic_height):
 
 # draw aperture onto image
 def draw_aperture(aperture, draw):
-    color = "#000"
+    fill_color = "#000"
     draw.line((aperture['x'], aperture['y'] - aperture['h'] / 2, aperture['x'], aperture['y'] + aperture['h'] / 2),
-              fill=color)
+              fill=fill_color)
 
 
 # draw scan line
 def draw_scan_line(aperture, draw, spectrum_angle):
-    color = "#888"
+    fill_color = "#888"
     xd = aperture['x']
     h = aperture['h'] / 2
     y0 = math.tan(spectrum_angle) * xd + aperture['y']
-    draw.line((0, y0 - h, aperture['x'], aperture['y'] - h), fill=color)
-    draw.line((0, y0 + h, aperture['x'], aperture['y'] + h), fill=color)
+    draw.line((0, y0 - h, aperture['x'], aperture['y'] - h), fill=fill_color)
+    draw.line((0, y0 + h, aperture['x'], aperture['y'] + h), fill=fill_color)
 
 
 # return an RGB visual representation of wavelength for chart
+# Based on: http://www.efg2.com/Lab/ScienceAndEngineering/Spectra.htm
+# The foregoing is based on: http://www.midnightkite.com/color.html
+# thresholds = [ 380, 440, 490, 510, 580, 645, 780 ]
+#                vio  blu  cyn  gre  yel  org  red
 def wavelength_to_color(lambda2):
-    # Based on: http://www.efg2.com/Lab/ScienceAndEngineering/Spectra.htm
-    # The foregoing is based on: http://www.midnightkite.com/color.html
     factor = 0.0
-
     color = [0, 0, 0]
-    # thresholds = [ 380, 440, 490, 510, 580, 645, 780 ]
-    #                    vio  blu  cyn  gre  yel  end
     thresholds = [380, 400, 450, 465, 520, 565, 780]
     for i in range(0, len(thresholds) - 1, 1):
         t1 = thresholds[i]
@@ -116,7 +115,7 @@ def wavelength_to_color(lambda2):
             t2 = tmp
         if i < 5:
             color[i % 3] = (lambda2 - t2) / (t1 - t2)
-        color[2 - i / 2] = 1.0
+        color[2 - int(i / 2)] = 1.0
         factor = 1.0
         break
 
@@ -144,13 +143,13 @@ def take_picture(camera, name, shutter):
     return raw_filename
 
 
-def draw_graph(draw, pic_pixels, aperture, spectrum_angle, wavelength_factor):
+def draw_graph(draw, pic_pixels, aperture: object, spectrum_angle, wavelength_factor):
     aperture_height = aperture['h'] / 2
     step = 1
     last_graph_y = 0
     max_result = 0
     results = OrderedDict()
-    for x in range(0, aperture['x'] * 7 / 8, step):
+    for x in range(0, int(aperture['x'] * 7 / 8), step):
         wavelength = (aperture['x'] - x) * wavelength_factor
         if 1000 < wavelength or wavelength < 380:
             continue
@@ -269,7 +268,7 @@ def export_diagram(name, normalized_results):
     draw.polygon(pl, fill="#FFF")
     draw.polygon(pl)
 
-    font = ImageFont.truetype("Lato-Regular.ttf", 12 * antialias)
+    font = ImageFont.truetype('/usr/share/fonts/truetype/lato/Lato-Regular.ttf', 12 * antialias)
     draw.line((0, h, w, h), fill="#000", width=antialias)
 
     for wl in range(400, 1001, 10):
@@ -284,7 +283,7 @@ def export_diagram(name, normalized_results):
         draw.text((x - tx[0] / 2, h + 5 * antialias), wls, font=font)
 
     # save chart
-    sd = sd.resize((w / antialias, h / antialias), Image.ANTIALIAS)
+    sd = sd.resize((int(w / antialias), int(h / antialias)), Image.ANTIALIAS)
     output_filename = name + "_chart.png"
     sd.save(output_filename, "PNG", quality=95, optimize=True, progressive=True)
 
@@ -298,10 +297,8 @@ def main():
     im = Image.open(raw_filename)
 
     # 2. Get picture's aperture
-    pic_width = im.size[0]
-    pic_height = im.size[1]
     pic_pixels = im.load()
-    aperture = find_aperture(pic_pixels, pic_width, pic_height)
+    aperture = find_aperture(pic_pixels, im.size[0], im.size[1])
 
     # 3. Draw aperture and scan line
     spectrum_angle = 0.03
