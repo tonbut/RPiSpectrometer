@@ -191,17 +191,18 @@ def draw_graph(draw, pic_pixels, aperture: object, spectrum_angle, wavelength_fa
         graph_y = amplitude / 50 * aperture_height
         draw.line((x - step, y0 + aperture_height - last_graph_y, x, y0 + aperture_height - graph_y), fill="#fff")
         last_graph_y = graph_y
-    draw_something(draw, aperture, spectrum_angle, wavelength_factor)  # not quire sure what this does
+    draw_ticks_and_frequencies(draw, aperture, spectrum_angle, wavelength_factor)
     return results, max_result
 
 
-def draw_something(draw, aperture, spectrum_angle, wavelength_factor):
+def draw_ticks_and_frequencies(draw, aperture, spectrum_angle, wavelength_factor):
     aperture_height = aperture['h'] / 2
     for wl in range(400, 1001, 50):
         x = aperture['x'] - (wl / wavelength_factor)
         y0 = math.tan(spectrum_angle) * (aperture['x'] - x) + aperture['y']
-        draw.line((x, y0 + aperture_height + 5, x, y0 + aperture_height - 5))
-        draw.text((x, y0 + aperture_height + 15), str(wl))
+        draw.line((x, y0 + aperture_height + 5, x, y0 + aperture_height - 5), fill="#fff")
+        font = ImageFont.truetype('/usr/share/fonts/truetype/lato/Lato-Regular.ttf', 12)
+        draw.text((x, y0 + aperture_height + 15), str(wl), font=font, fill="#fff")
 
 
 def inform_user_of_exposure(max_result):
