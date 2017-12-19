@@ -280,7 +280,7 @@ def export_diagram(name, normalized_results):
         draw.line((x, h, x, h + 5 * antialias), fill="#000", width=antialias)
         wls = str(wl)
         tx = draw.textsize(wls, font=font)
-        draw.text((x - tx[0] / 2, h + 5 * antialias), wls, font=font)
+        draw.text((x - tx[0] / 2, h + 5 * antialias), wls, font=font, fill="#000")
 
     # save chart
     sd = sd.resize((int(w / antialias), int(h / antialias)), Image.ANTIALIAS)
