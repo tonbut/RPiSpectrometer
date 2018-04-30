@@ -82,6 +82,9 @@ celerybeat-schedule
 venv/
 ENV/
 
+# PyCharm settings
+.idea
+
 # Spyder project settings
 .spyderproject
 

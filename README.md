@@ -15,7 +15,7 @@ Then ```docker run --device=/dev/vchiq -i -t [your_image_name_from_above] /bin/b
 All of the files located in this directory will be mounted at ```/src```, run
 ```cd src``` to navigate there.
 
-From here, all you have to do is run the capture command ```python spectrometer.py [file_name_for_images] [shutter_time_microseconds]``` eg. ```python spectrometer.py my_first_spectometer 100000```
+From here, all you have to do is run the capture command ```python3 spectrometer.py [file_name_for_images] [shutter_time_microseconds]``` eg. ```python3 spectrometer.py my_first_spectometer 100000```
 
 ## Deploying to a Pi Device
 Take a micro-SD card and drop the source code from this repository onto a desired location.
