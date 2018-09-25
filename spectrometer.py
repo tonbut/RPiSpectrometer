@@ -73,7 +73,7 @@ def find_aperture(pic_pixels, pic_width: int, pic_height: int) -> object:
     spectrum_threshold_duration = 64
     aperture_y_bounds = get_spectrum_y_bound(pic_pixels, aperture_x, middle_y, aperture_threshold, spectrum_threshold_duration)
     aperture_y = (aperture_y_bounds[0] + aperture_y_bounds[1]) / 2
-    aperture_height = (aperture_y_bounds[1] - aperture_y_bounds[0]) * 0.9
+    aperture_height = (aperture_y_bounds[1] - aperture_y_bounds[0]) * 1.0
 
     return {'x': aperture_x, 'y': aperture_y, 'h': aperture_height, 'b': aperture_brightest}
 
@@ -127,20 +127,24 @@ def wavelength_to_color(lambda2):
     return int(255 * color[0] * factor), int(255 * color[1] * factor), int(255 * color[2] * factor)
 
 
-def take_picture(camera, name, shutter):
-    camera.vflip = True
-    camera.framerate = Fraction(1, 6)
-    camera.shutter_speed = shutter
-    camera.iso = 100
-    camera.exposure_mode = 'off'
-    camera.awb_mode = 'off'
-    camera.awb_gains = (1, 1)
-
-    time.sleep(3)
-
-    raw_filename = name + "_raw.jpg"
-    camera.capture(raw_filename, resize=(1296, 972))
-    return raw_filename
+def take_picture(name, shutter):
+    print("initialising camera")
+    camera = picamera.PiCamera()
+    try:
+        print("allowing camera to warmup")
+        camera.vflip = True
+        camera.framerate = Fraction(1, 2)
+        camera.shutter_speed = shutter
+        camera.iso = 100
+        camera.exposure_mode = 'off'
+        camera.awb_mode = 'off'
+        camera.awb_gains = (1, 1)
+        time.sleep(3)
+        print("capturing image")
+        camera.capture(name, resize=(1296, 972))
+    finally:
+    	camera.close()
+    return name
 
 
 def draw_graph(draw, pic_pixels, aperture: object, spectrum_angle, wavelength_factor):
@@ -160,18 +164,18 @@ def draw_graph(draw, pic_pixels, aperture: object, spectrum_angle, wavelength_fa
             eff = 0.3
 
         # notch near yellow maybe caused by camera sensitivity
-        mid = 575
-        width = 10
+        mid = 571
+        width = 14
         if (mid - width) < wavelength < (mid + width):
             d = (width - abs(wavelength - mid)) / width
-            eff = eff * (1 - d * 0.1)
+            eff = eff * (1 - d * 0.12)
 
         # up notch near 590
-        mid = 588
-        width = 10
-        if (mid - width) < wavelength < (mid + width):
-            d = (width - abs(wavelength - mid)) / width
-            eff = eff * (1 + d * 0.1)
+        #mid = 588
+        #width = 10
+        #if (mid - width) < wavelength < (mid + width):
+        #    d = (width - abs(wavelength - mid)) / width
+        #    eff = eff * (1 + d * 0.1)
 
         y0 = math.tan(spectrum_angle) * (aperture['x'] - x) + aperture['y']
         amplitude = 0
@@ -291,25 +295,28 @@ def export_diagram(name, normalized_results):
 
 def main():
     # 1. Take picture
-    camera = picamera.PiCamera()
     name = sys.argv[1]
     shutter = int(sys.argv[2])
-    raw_filename = take_picture(camera, name, shutter)
-    im = Image.open(raw_filename)
+    raw_filename = name + "_raw.jpg"
+    take_picture(raw_filename,shutter)
 
     # 2. Get picture's aperture
+    im = Image.open(raw_filename)
+    print("locating aperture")
     pic_pixels = im.load()
     aperture = find_aperture(pic_pixels, im.size[0], im.size[1])
 
     # 3. Draw aperture and scan line
-    spectrum_angle = 0.03
+    spectrum_angle = -0.01
     draw = ImageDraw.Draw(im)
     draw_aperture(aperture, draw)
     draw_scan_line(aperture, draw, spectrum_angle)
 
     # 4. Draw graph on picture
-    wavelength_factor = 0.892  # 1000/mm
-    # wavelength_factor=0.892*2.0*600/650 # 500/mm
+    print("analysing image")
+    wavelength_factor = 0.95
+    #wavelength_factor = 0.892  # 1000/mm
+    #wavelength_factor=0.892*2.0*600/650 # 500/mm
     results, max_result = draw_graph(draw, pic_pixels, aperture, spectrum_angle, wavelength_factor)
 
     # 5. Inform user of issues with exposure
@@ -319,12 +326,14 @@ def main():
     save_image_with_overlay(im, name)
 
     # 7. Normalize results for export
+    print("exporting CSV")
     normalized_results = normalize_results(results, max_result)
 
     # 8. Save csv of results
     export_csv(name, normalized_results)
 
     # 9. Generate spectrum diagram
+    print("generating chart")
     export_diagram(name, normalized_results)
 
 
